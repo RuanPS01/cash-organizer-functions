@@ -63,4 +63,27 @@ Secrets necessárias em **Settings → Secrets and variables → Actions**:
 | Secret | Conteúdo |
 | --- | --- |
 | `FIREBASE_PROJECT_ID` | O id do projeto no Firebase (ex.: `cash-organizer-a1b2c`). |
-| `FIREBASE_SERVICE_ACCOUNT` | O JSON completo de uma service account com permissão de deploy. No Console do Google Cloud: **IAM & Admin → Service Accounts → Create**, com os papéis **Firebase Admin** e **Service Account User** (ou use a service account `firebase-adminsdk` do projeto) → **Keys → Add key → JSON**. Cole o conteúdo do arquivo inteiro na secret. |
+| `FIREBASE_SERVICE_ACCOUNT` | O JSON completo de uma chave de service account com permissão de deploy (**Service Accounts → Keys → Add key → JSON**). Cole o conteúdo do arquivo inteiro na secret. |
+
+### Papéis (IAM) da service account
+
+A service account usada no deploy (pode ser a `firebase-adminsdk` do projeto)
+precisa dos papéis abaixo em **IAM & Admin → IAM → editar principal**:
+
+| Papel | Motivo |
+| --- | --- |
+| **Firebase Admin** (`roles/firebase.admin`) | Deploy de rules, indexes e functions. |
+| **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`) | O firebase-tools checa se as APIs do projeto estão habilitadas; sem isso o deploy falha com `403 Permission denied to get service [firestore.googleapis.com]`. |
+| **Service Account User** (`roles/iam.serviceAccountUser`) | O deploy de functions precisa "atuar como" a service account de runtime. |
+
+Antes do primeiro deploy de functions, habilite também as APIs do projeto
+(uma única vez), em **APIs & Services → Enable APIs** ou via gcloud:
+
+```bash
+gcloud services enable cloudfunctions.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com eventarc.googleapis.com run.googleapis.com \
+  pubsub.googleapis.com --project SEU_PROJECT_ID
+```
+
+(Alternativa: conceda **Service Usage Admin** em vez de *Consumer* e a CLI
+habilita as APIs sozinha no primeiro deploy.)
