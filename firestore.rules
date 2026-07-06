@@ -62,7 +62,9 @@ service cloud.firestore {
                                 && request.resource.data.idealAmount is int
                                 && request.resource.data.idealAmount >= 0
                                 && request.resource.data.status is string;
-          allow delete: if false;
+          // Remover um gasto fixo do cadastro também remove a linha dele do
+          // mês em aberto.
+          allow delete: if true;
         }
 
         match /categoryEntries/{entryId} {
@@ -70,7 +72,8 @@ service cloud.firestore {
           allow create, update: if request.resource.data.idealAmount is int
                                 && request.resource.data.idealAmount >= 0
                                 && request.resource.data.status is string;
-          allow delete: if false;
+          // Remover uma categoria sem lançamentos no mês remove a linha dela.
+          allow delete: if true;
         }
 
         match /expenses/{expenseId} {
