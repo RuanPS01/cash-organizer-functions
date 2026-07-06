@@ -20,28 +20,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: functions/package-lock.json
-
-      - name: Install functions dependencies
-        working-directory: functions
-        run: npm ci
-
-      - name: Build functions
-        working-directory: functions
-        run: npm run build
 
       - name: Write Firebase service account credentials
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
 
-      - name: Deploy Firestore rules, indexes and functions
+      - name: Deploy Firestore rules and indexes
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
         run: >
           npx firebase-tools@15 deploy
-          --only firestore,functions
+          --only firestore
           --project "${{ secrets.FIREBASE_PROJECT_ID }}"
           --non-interactive --force
 
