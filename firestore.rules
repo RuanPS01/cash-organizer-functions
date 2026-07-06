@@ -1,0 +1,91 @@
+rules_version = '2';
+
+// O app não usa Firebase Auth: o acesso é protegido pelo conhecimento do
+// nome + senha do compartimento (o cliente valida o hash SHA-256).
+// Estas regras impedem a enumeração de compartimentos, tornam o hash da
+// senha imutável e validam a estrutura básica dos documentos.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /compartments/{compartmentId} {
+      // get: necessário para abrir/validar um compartimento pelo id.
+      // list: bloqueado para não permitir enumerar compartimentos alheios.
+      allow get: if true;
+      allow list: if false;
+
+      allow create: if request.resource.data.keys().hasAll(['name', 'passwordHash', 'currentMonth', 'createdAt'])
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 100
+                    && request.resource.data.passwordHash is string
+                    && request.resource.data.passwordHash.size() == 64
+                    && request.resource.data.currentMonth is string
+                    && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}');
+
+      // Só o mês corrente pode mudar; nome e hash da senha são imutáveis.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentMonth'])
+                    && request.resource.data.currentMonth is string
+                    && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}');
+
+      allow delete: if false;
+
+      match /fixedExpenses/{expenseId} {
+        allow read: if true;
+        allow create, update: if request.resource.data.name is string
+                              && request.resource.data.name.size() > 0
+                              && request.resource.data.amount is int
+                              && request.resource.data.amount >= 0
+                              && request.resource.data.idealAmount is int
+                              && request.resource.data.idealAmount >= 0;
+        allow delete: if false;
+      }
+
+      match /categories/{categoryId} {
+        allow read: if true;
+        allow create, update: if request.resource.data.name is string
+                              && request.resource.data.name.size() > 0
+                              && request.resource.data.idealAmount is int
+                              && request.resource.data.idealAmount >= 0;
+        allow delete: if false;
+      }
+
+      match /months/{monthId} {
+        allow read: if true;
+        allow create, update: if monthId.matches('[0-9]{4}-[0-9]{2}')
+                              && request.resource.data.status in ['open', 'closed'];
+        allow delete: if false;
+
+        match /fixedEntries/{entryId} {
+          allow read: if true;
+          allow create, update: if request.resource.data.amount is int
+                                && request.resource.data.amount >= 0
+                                && request.resource.data.idealAmount is int
+                                && request.resource.data.idealAmount >= 0
+                                && request.resource.data.status is string;
+          allow delete: if false;
+        }
+
+        match /categoryEntries/{entryId} {
+          allow read: if true;
+          allow create, update: if request.resource.data.idealAmount is int
+                                && request.resource.data.idealAmount >= 0
+                                && request.resource.data.status is string;
+          allow delete: if false;
+        }
+
+        match /expenses/{expenseId} {
+          allow read: if true;
+          allow create: if request.resource.data.amount is int
+                        && request.resource.data.amount > 0
+                        && request.resource.data.categoryId is string
+                        && request.resource.data.categoryName is string
+                        && request.resource.data.week is int
+                        && request.resource.data.week >= 1
+                        && request.resource.data.week <= 4;
+          allow update: if false;
+          allow delete: if true;
+        }
+      }
+    }
+  }
+}
