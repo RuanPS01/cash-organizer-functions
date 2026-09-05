@@ -25,8 +25,10 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
 - bloqueiam `list` na coleção `compartments` (não dá para enumerar compartimentos);
 - tornam o `passwordHash` e o nome do compartimento imutáveis;
 - validam a estrutura básica dos documentos (tipos, valores em centavos >= 0 etc.);
-- em `expenses`, liberam a correção de `amount` e `description` (o histórico do
-  mês edita esses dois no lugar) e mantêm data, semana e categoria imutáveis.
+- em `expenses`, liberam a correção de `amount` e `description` e a
+  reclassificação de `categoryId`, `categoryName`, `originId` e `originName`
+  (o histórico do mês edita tudo isso, uma linha por vez ou em lote), mantendo
+  data e semana imutáveis.
 
 O Firestore nega tudo que não está explicitamente liberado, então **coleção nova
 no app exige bloco novo aqui**. Hoje existem `fixedExpenses`, `categories`,

@@ -101,13 +101,21 @@ service cloud.firestore {
                         && request.resource.data.week is int
                         && request.resource.data.week >= 1
                         && request.resource.data.week <= 4;
-          // O histórico do mês permite corrigir valor e descrição do
-          // lançamento; data, semana e categoria seguem imutáveis.
+          // O histórico do mês permite corrigir valor e descrição e
+          // reclassificar o lançamento (categoria e origem), uma linha por vez
+          // ou em lote; data e semana seguem imutáveis.
           allow update: if request.resource.data.amount is int
                         && request.resource.data.amount > 0
                         && request.resource.data.description is string
+                        && request.resource.data.categoryId is string
+                        && request.resource.data.categoryId.size() > 0
+                        && request.resource.data.categoryName is string
+                        && (!('originName' in request.resource.data)
+                            || request.resource.data.originName is string)
                         && request.resource.data.diff(resource.data)
-                             .affectedKeys().hasOnly(['amount', 'description']);
+                             .affectedKeys()
+                             .hasOnly(['amount', 'description', 'categoryId',
+                                       'categoryName', 'originId', 'originName']);
           allow delete: if true;
         }
       }
