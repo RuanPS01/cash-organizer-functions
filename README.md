@@ -24,7 +24,14 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
 
 - bloqueiam `list` na coleção `compartments` (não dá para enumerar compartimentos);
 - tornam o `passwordHash` e o nome do compartimento imutáveis;
-- validam a estrutura básica dos documentos (tipos, valores em centavos >= 0 etc.).
+- validam a estrutura básica dos documentos (tipos, valores em centavos >= 0 etc.);
+- em `expenses`, liberam a correção de `amount` e `description` (o histórico do
+  mês edita esses dois no lugar) e mantêm data, semana e categoria imutáveis.
+
+O Firestore nega tudo que não está explicitamente liberado, então **coleção nova
+no app exige bloco novo aqui**. Hoje existem `fixedExpenses`, `categories`,
+`origins` e `months` (com `fixedEntries`, `categoryEntries` e `expenses`). Sem o
+bloco, a tela do app falha com `permission-denied` sem conseguir nem listar.
 
 ## Desenvolvimento local
 
