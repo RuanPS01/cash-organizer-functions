@@ -49,6 +49,22 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Origem do gasto (forma de pagamento): cadastro do compartimento, no
+      // mesmo modelo das categorias. Sem este bloco o Firestore nega tudo, e o
+      // app não consegue nem listar nem criar origem.
+      match /origins/{originId} {
+        allow read: if true;
+        allow create, update: if request.resource.data.name is string
+                              && request.resource.data.name.size() > 0
+                              && request.resource.data.name.size() <= 100
+                              && request.resource.data.icon is string
+                              && request.resource.data.color is string
+                              && request.resource.data.isDefault is bool
+                              && request.resource.data.active is bool;
+        // Remoção é desativação (active: false), como nos demais cadastros.
+        allow delete: if false;
+      }
+
       match /months/{monthId} {
         allow read: if true;
         allow create, update: if monthId.matches('[0-9]{4}-[0-9]{2}')
@@ -85,7 +101,13 @@ service cloud.firestore {
                         && request.resource.data.week is int
                         && request.resource.data.week >= 1
                         && request.resource.data.week <= 4;
-          allow update: if false;
+          // O histórico do mês permite corrigir valor e descrição do
+          // lançamento; data, semana e categoria seguem imutáveis.
+          allow update: if request.resource.data.amount is int
+                        && request.resource.data.amount > 0
+                        && request.resource.data.description is string
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['amount', 'description']);
           allow delete: if true;
         }
       }
