@@ -92,6 +92,19 @@ service cloud.firestore {
           allow delete: if true;
         }
 
+        // Linha de origem do mês: guarda só o nome e o status de pagamento da
+        // origem (o valor dela é somado na tela, não gravado). É por aqui que a
+        // aba Pagamento acompanha o que já foi pago em cada forma de pagamento;
+        // sem este bloco ela não lista nem grava status.
+        match /originEntries/{entryId} {
+          allow read: if true;
+          allow create, update: if request.resource.data.name is string
+                                && request.resource.data.name.size() > 0
+                                && request.resource.data.status is string;
+          // Origem removida do cadastro e sem gasto no mês perde a linha.
+          allow delete: if true;
+        }
+
         match /expenses/{expenseId} {
           allow read: if true;
           allow create: if request.resource.data.amount is int
@@ -101,9 +114,12 @@ service cloud.firestore {
                         && request.resource.data.week is int
                         && request.resource.data.week >= 1
                         && request.resource.data.week <= 4;
-          // O histórico do mês permite corrigir valor e descrição e
-          // reclassificar o lançamento (categoria e origem), uma linha por vez
-          // ou em lote; data e semana seguem imutáveis.
+          // O histórico do mês edita o lançamento inteiro no modal do lápis:
+          // valor, descrição, classificação (categoria e origem) e a data do
+          // gasto, que traz a semana junto, porque a semana é derivada dela.
+          // A reclassificação em lote usa a mesma regra, tocando só a
+          // classificação. O documento nunca muda de mês: editar a data
+          // reescreve createdAt e week, não move o lançamento de coleção.
           allow update: if request.resource.data.amount is int
                         && request.resource.data.amount > 0
                         && request.resource.data.description is string
@@ -112,10 +128,16 @@ service cloud.firestore {
                         && request.resource.data.categoryName is string
                         && (!('originName' in request.resource.data)
                             || request.resource.data.originName is string)
+                        && request.resource.data.createdAt is int
+                        && request.resource.data.createdAt > 0
+                        && request.resource.data.week is int
+                        && request.resource.data.week >= 1
+                        && request.resource.data.week <= 4
                         && request.resource.data.diff(resource.data)
                              .affectedKeys()
                              .hasOnly(['amount', 'description', 'categoryId',
-                                       'categoryName', 'originId', 'originName']);
+                                       'categoryName', 'originId', 'originName',
+                                       'createdAt', 'week']);
           allow delete: if true;
         }
       }
