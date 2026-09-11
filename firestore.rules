@@ -22,10 +22,16 @@ service cloud.firestore {
                     && request.resource.data.currentMonth is string
                     && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}');
 
-      // Só o mês corrente pode mudar; nome e hash da senha são imutáveis.
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentMonth'])
+      // Só o mês corrente e a categoria acompanhada no card da semana podem
+      // mudar; nome e hash da senha são imutáveis. A categoria fica aqui, e não
+      // no dispositivo, para a escolha valer em qualquer aparelho.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['currentMonth', 'weekCategoryId'])
                     && request.resource.data.currentMonth is string
-                    && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}');
+                    && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}')
+                    && (!('weekCategoryId' in request.resource.data)
+                        || request.resource.data.weekCategoryId == null
+                        || request.resource.data.weekCategoryId is string);
 
       allow delete: if false;
 
@@ -67,8 +73,14 @@ service cloud.firestore {
 
       match /months/{monthId} {
         allow read: if true;
+        // `currentWeek` é a semana corrente do mês (1 a 4), que o usuário vira
+        // no botão da aba Adicionar; o mês nasce na semana 1.
         allow create, update: if monthId.matches('[0-9]{4}-[0-9]{2}')
-                              && request.resource.data.status in ['open', 'closed'];
+                              && request.resource.data.status in ['open', 'closed']
+                              && (!('currentWeek' in request.resource.data)
+                                  || (request.resource.data.currentWeek is int
+                                      && request.resource.data.currentWeek >= 1
+                                      && request.resource.data.currentWeek <= 4));
         allow delete: if false;
 
         match /fixedEntries/{entryId} {
