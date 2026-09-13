@@ -24,9 +24,11 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
 
 - bloqueiam `list` na coleção `compartments` (não dá para enumerar compartimentos);
 - tornam o `passwordHash` e o nome do compartimento imutáveis, deixando mudar
-  só o mês corrente (`currentMonth`) e a categoria acompanhada no card da
-  semana (`weekCategoryId`), que fica no compartimento para a escolha valer em
-  qualquer aparelho;
+  só o mês corrente (`currentMonth`) e as preferências de leitura do card de
+  estatísticas da tela Adicionar: a categoria e a origem acompanhadas
+  (`weekCategoryId` e `weekOriginId`) e a aba aberta (`addStatsTab`, que só
+  aceita `month`, `category` ou `origin`). Elas ficam no compartimento para a
+  escolha valer em qualquer aparelho;
 - validam a estrutura básica dos documentos (tipos, valores em centavos >= 0 etc.);
 - em `expenses`, liberam a edição do lançamento feita no histórico do mês:
   `amount`, `description`, a classificação (`categoryId`, `categoryName`,
