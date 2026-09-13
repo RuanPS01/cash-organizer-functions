@@ -22,16 +22,23 @@ service cloud.firestore {
                     && request.resource.data.currentMonth is string
                     && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}');
 
-      // Só o mês corrente e a categoria acompanhada no card da semana podem
-      // mudar; nome e hash da senha são imutáveis. A categoria fica aqui, e não
-      // no dispositivo, para a escolha valer em qualquer aparelho.
+      // Só o mês corrente e as preferências de leitura do card de estatísticas
+      // da tela Adicionar (categoria e origem acompanhadas e aba aberta) podem
+      // mudar; nome e hash da senha são imutáveis. As preferências ficam aqui,
+      // e não no dispositivo, para a escolha valer em qualquer aparelho.
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['currentMonth', 'weekCategoryId'])
+                         .hasOnly(['currentMonth', 'weekCategoryId', 'weekOriginId',
+                                   'addStatsTab'])
                     && request.resource.data.currentMonth is string
                     && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}')
                     && (!('weekCategoryId' in request.resource.data)
                         || request.resource.data.weekCategoryId == null
-                        || request.resource.data.weekCategoryId is string);
+                        || request.resource.data.weekCategoryId is string)
+                    && (!('weekOriginId' in request.resource.data)
+                        || request.resource.data.weekOriginId == null
+                        || request.resource.data.weekOriginId is string)
+                    && (!('addStatsTab' in request.resource.data)
+                        || request.resource.data.addStatsTab in ['month', 'category', 'origin']);
 
       allow delete: if false;
 
