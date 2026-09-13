@@ -60,13 +60,20 @@ service cloud.firestore {
       // app não consegue nem listar nem criar origem.
       match /origins/{originId} {
         allow read: if true;
+        // `idealAmount` é o gasto ideal do mês da origem, no mesmo modelo do
+        // ideal da categoria. Opcional na validação porque a origem cadastrada
+        // antes do campo existir não tem a chave, e sem essa folga trocar a
+        // padrão ou a ordem dela passaria a ser recusado.
         allow create, update: if request.resource.data.name is string
                               && request.resource.data.name.size() > 0
                               && request.resource.data.name.size() <= 100
                               && request.resource.data.icon is string
                               && request.resource.data.color is string
                               && request.resource.data.isDefault is bool
-                              && request.resource.data.active is bool;
+                              && request.resource.data.active is bool
+                              && (!('idealAmount' in request.resource.data)
+                                  || (request.resource.data.idealAmount is int
+                                      && request.resource.data.idealAmount >= 0));
         // Remoção é desativação (active: false), como nos demais cadastros.
         allow delete: if false;
       }
@@ -104,15 +111,20 @@ service cloud.firestore {
           allow delete: if true;
         }
 
-        // Linha de origem do mês: guarda só o nome e o status de pagamento da
-        // origem (o valor dela é somado na tela, não gravado). É por aqui que a
-        // aba Pagamento acompanha o que já foi pago em cada forma de pagamento;
-        // sem este bloco ela não lista nem grava status.
+        // Linha de origem do mês: guarda o nome, o gasto ideal e o status de
+        // pagamento da origem (o gasto dela é somado na tela, não gravado). É
+        // por aqui que a aba Pagamento acompanha o que já foi pago em cada
+        // forma de pagamento; sem este bloco ela não lista nem grava status.
+        // O ideal é opcional na validação: a linha criada antes do campo
+        // existir não tem a chave até a reconciliação do mês completá-la.
         match /originEntries/{entryId} {
           allow read: if true;
           allow create, update: if request.resource.data.name is string
                                 && request.resource.data.name.size() > 0
-                                && request.resource.data.status is string;
+                                && request.resource.data.status is string
+                                && (!('idealAmount' in request.resource.data)
+                                    || (request.resource.data.idealAmount is int
+                                        && request.resource.data.idealAmount >= 0));
           // Origem removida do cadastro e sem gasto no mês perde a linha.
           allow delete: if true;
         }
