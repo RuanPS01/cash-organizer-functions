@@ -35,9 +35,13 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
   mesma regra, tocando só a classificação. Qualquer outro campo segue
   bloqueado, e o lançamento nunca muda de mês: editar a data reescreve os dois
   campos, não move o documento de coleção;
-- em `months/{ym}/originEntries`, liberam a linha de origem do mês (nome e
-  status de pagamento), que é como a aba Pagamento acompanha o que já foi pago
-  em cada forma de pagamento;
+- em `months/{ym}/originEntries`, liberam a linha de origem do mês (nome, gasto
+  ideal e status de pagamento), que é como a aba Pagamento acompanha o que já
+  foi pago em cada forma de pagamento;
+- em `origins` e em `months/{ym}/originEntries`, aceitam `idealAmount`, o gasto
+  ideal do mês da origem (inteiro em centavos, no mesmo modelo do ideal da
+  categoria). A validação trata o campo como opcional, porque a origem e a
+  linha de mês criadas antes dele não têm a chave;
 - no documento do mês, aceitam `currentWeek` (a semana corrente, de 1 a 4, que
   o usuário vira no botão da aba Adicionar) e `weekChangedAt`.
 
