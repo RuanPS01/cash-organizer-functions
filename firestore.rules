@@ -22,13 +22,14 @@ service cloud.firestore {
                     && request.resource.data.currentMonth is string
                     && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}');
 
-      // Só o mês corrente e as preferências de leitura do card de estatísticas
-      // da tela Adicionar (categoria e origem acompanhadas e aba aberta) podem
-      // mudar; nome e hash da senha são imutáveis. As preferências ficam aqui,
-      // e não no dispositivo, para a escolha valer em qualquer aparelho.
+      // Só o mês corrente, a renda mensal líquida e as preferências de leitura
+      // do card de estatísticas da tela Adicionar (categoria e origem
+      // acompanhadas e aba aberta) podem mudar; nome e hash da senha são
+      // imutáveis. As preferências e a renda ficam aqui, e não no dispositivo,
+      // para valerem em qualquer aparelho.
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['currentMonth', 'weekCategoryId', 'weekOriginId',
-                                   'addStatsTab'])
+                                   'addStatsTab', 'monthlyIncome'])
                     && request.resource.data.currentMonth is string
                     && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}')
                     && (!('weekCategoryId' in request.resource.data)
@@ -38,18 +39,29 @@ service cloud.firestore {
                         || request.resource.data.weekOriginId == null
                         || request.resource.data.weekOriginId is string)
                     && (!('addStatsTab' in request.resource.data)
-                        || request.resource.data.addStatsTab in ['month', 'category', 'origin']);
+                        || request.resource.data.addStatsTab in ['month', 'category', 'origin'])
+                    // Renda mensal líquida em centavos. Opcional porque o
+                    // compartimento criado antes do campo existir não tem a
+                    // chave, e sem essa folga até trocar o mês corrente dele
+                    // passaria a ser recusado.
+                    && (!('monthlyIncome' in request.resource.data)
+                        || (request.resource.data.monthlyIncome is int
+                            && request.resource.data.monthlyIncome >= 0));
 
       allow delete: if false;
 
       match /fixedExpenses/{expenseId} {
         allow read: if true;
+        // O gasto fixo não tem mais gasto ideal separado: o valor da conta é o
+        // próprio previsto do mês. `idealAmount` continua aceito, e validado,
+        // porque o cadastro gravado antes da mudança ainda carrega a chave.
         allow create, update: if request.resource.data.name is string
                               && request.resource.data.name.size() > 0
                               && request.resource.data.amount is int
                               && request.resource.data.amount >= 0
-                              && request.resource.data.idealAmount is int
-                              && request.resource.data.idealAmount >= 0;
+                              && (!('idealAmount' in request.resource.data)
+                                  || (request.resource.data.idealAmount is int
+                                      && request.resource.data.idealAmount >= 0));
         allow delete: if false;
       }
 
@@ -88,22 +100,34 @@ service cloud.firestore {
       match /months/{monthId} {
         allow read: if true;
         // `currentWeek` é a semana corrente do mês (1 a 4), que o usuário vira
-        // no botão da aba Adicionar; o mês nasce na semana 1.
+        // no botão da aba Adicionar; o mês nasce na semana 1. `income` é a
+        // renda líquida daquele mês, copiada do compartimento quando o mês
+        // nasce: é ela que o resumo do mês usa como referência do restante, e
+        // fica no mês para que mudar a renda hoje não reescreva um mês
+        // fechado. Opcional porque o mês criado antes do campo não tem a
+        // chave.
         allow create, update: if monthId.matches('[0-9]{4}-[0-9]{2}')
                               && request.resource.data.status in ['open', 'closed']
                               && (!('currentWeek' in request.resource.data)
                                   || (request.resource.data.currentWeek is int
                                       && request.resource.data.currentWeek >= 1
-                                      && request.resource.data.currentWeek <= 4));
+                                      && request.resource.data.currentWeek <= 4))
+                              && (!('income' in request.resource.data)
+                                  || (request.resource.data.income is int
+                                      && request.resource.data.income >= 0));
         allow delete: if false;
 
+        // A linha de gasto fixo do mês acompanha o cadastro e também não tem
+        // mais ideal próprio; a chave só aparece nas linhas gravadas antes da
+        // mudança, e por isso continua aceita e validada.
         match /fixedEntries/{entryId} {
           allow read: if true;
           allow create, update: if request.resource.data.amount is int
                                 && request.resource.data.amount >= 0
-                                && request.resource.data.idealAmount is int
-                                && request.resource.data.idealAmount >= 0
-                                && request.resource.data.status is string;
+                                && request.resource.data.status is string
+                                && (!('idealAmount' in request.resource.data)
+                                    || (request.resource.data.idealAmount is int
+                                        && request.resource.data.idealAmount >= 0));
           // Remover um gasto fixo do cadastro também remove a linha dele do
           // mês em aberto.
           allow delete: if true;
