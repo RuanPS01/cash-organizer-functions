@@ -24,11 +24,11 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
 
 - bloqueiam `list` na coleção `compartments` (não dá para enumerar compartimentos);
 - tornam o `passwordHash` e o nome do compartimento imutáveis, deixando mudar
-  só o mês corrente (`currentMonth`) e as preferências de leitura do card de
-  estatísticas da tela Adicionar: a categoria e a origem acompanhadas
-  (`weekCategoryId` e `weekOriginId`) e a aba aberta (`addStatsTab`, que só
-  aceita `month`, `category` ou `origin`). Elas ficam no compartimento para a
-  escolha valer em qualquer aparelho;
+  só o mês corrente (`currentMonth`), a renda mensal líquida (`monthlyIncome`)
+  e as preferências de leitura do card de estatísticas da tela Adicionar: a
+  categoria e a origem acompanhadas (`weekCategoryId` e `weekOriginId`) e a aba
+  aberta (`addStatsTab`, que só aceita `month`, `category` ou `origin`). Tudo
+  isso fica no compartimento para valer em qualquer aparelho;
 - validam a estrutura básica dos documentos (tipos, valores em centavos >= 0 etc.);
 - em `expenses`, liberam a edição do lançamento feita no histórico do mês:
   `amount`, `description`, a classificação (`categoryId`, `categoryName`,
@@ -45,7 +45,16 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
   categoria). A validação trata o campo como opcional, porque a origem e a
   linha de mês criadas antes dele não têm a chave;
 - no documento do mês, aceitam `currentWeek` (a semana corrente, de 1 a 4, que
-  o usuário vira no botão da aba Adicionar) e `weekChangedAt`.
+  o usuário vira no botão da aba Adicionar), `weekChangedAt` e `income`, a renda
+  líquida daquele mês (inteiro em centavos, opcional): ela é copiada do
+  compartimento quando o mês nasce e fica no mês para que mudar a renda hoje não
+  reescreva o restante de um mês já fechado;
+- em `fixedExpenses` e em `months/{ym}/fixedEntries`, tratam `idealAmount` como
+  opcional. O gasto fixo não tem mais gasto ideal separado (o valor da conta é o
+  próprio previsto do mês), então o app parou de escrever esse campo: enquanto a
+  regra o exigia, toda gravação de gasto fixo era recusada, inclusive a criação
+  das linhas de um mês novo. A validação continua existindo para os documentos
+  gravados antes da mudança, que ainda carregam a chave.
 
 O Firestore nega tudo que não está explicitamente liberado, então **coleção nova
 no app exige bloco novo aqui**. Hoje existem `fixedExpenses`, `categories`,
