@@ -104,10 +104,15 @@ service cloud.firestore {
       }
 
       // Planejamento financeiro: projeção do que se guarda por mês, com
-      // rendimento opcional de renda fixa. Guarda só as entradas da simulação;
-      // o resultado é calculado no app. Dinheiro em centavos e taxas em
+      // rendimento opcional de renda fixa. Guarda as entradas da simulação; o
+      // resultado é calculado no app. Dinheiro em centavos e taxas em
       // centésimos de ponto percentual, os dois inteiros. Sem este bloco a aba
       // Planejamento não lista nem grava plano.
+      //
+      // `trackedFrom` (mês em que o plano entrou nos gastos fixos) e `progress`
+      // (o planejado e o guardado de cada mês fechado, gravado na virada) são o
+      // acompanhamento do plano em curso. Opcionais porque o plano criado antes
+      // deles e o que nunca entrou nos gastos fixos não têm as chaves.
       match /plans/{planId} {
         allow read: if true;
         allow create, update: if request.resource.data.name is string
@@ -134,7 +139,13 @@ service cloud.firestore {
                               && request.resource.data.cdiPercent is int
                               && request.resource.data.cdiPercent >= 0
                               && request.resource.data.incomeTax is bool
-                              && request.resource.data.active is bool;
+                              && request.resource.data.active is bool
+                              && (!('trackedFrom' in request.resource.data)
+                                  || request.resource.data.trackedFrom == null
+                                  || (request.resource.data.trackedFrom is string
+                                      && request.resource.data.trackedFrom.matches('[0-9]{4}-[0-9]{2}')))
+                              && (!('progress' in request.resource.data)
+                                  || request.resource.data.progress is map);
         // Remoção é desativação (active: false), como nos demais cadastros.
         allow delete: if false;
       }
@@ -162,7 +173,8 @@ service cloud.firestore {
         // A linha de gasto fixo do mês acompanha o cadastro e também não tem
         // mais ideal próprio; a chave só aparece nas linhas gravadas antes da
         // mudança, e por isso continua aceita e validada. `planId` é copiado
-        // do cadastro e marca a linha como gasto fixo de planejamento.
+        // do cadastro e marca a linha como gasto fixo de planejamento, e
+        // `paidAmount` é o valor guardado quando ele ficou pago em parte.
         match /fixedEntries/{entryId} {
           allow read: if true;
           allow create, update: if request.resource.data.amount is int
@@ -173,7 +185,11 @@ service cloud.firestore {
                                         && request.resource.data.idealAmount >= 0))
                                 && (!('planId' in request.resource.data)
                                     || request.resource.data.planId == null
-                                    || request.resource.data.planId is string);
+                                    || request.resource.data.planId is string)
+                                && (!('paidAmount' in request.resource.data)
+                                    || request.resource.data.paidAmount == null
+                                    || (request.resource.data.paidAmount is int
+                                        && request.resource.data.paidAmount >= 0));
           // Remover um gasto fixo do cadastro também remove a linha dele do
           // mês em aberto.
           allow delete: if true;

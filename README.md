@@ -56,13 +56,17 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
   unidade digitada em `durationUnit`), primeiro mês (`startMonth`, `YYYY-MM`) e
   o rendimento opcional (`rateMode` `none`, `annual` ou `cdi`, com `annualRate`,
   `cdiRate` e `cdiPercent` inteiros em centésimos de ponto percentual, e
-  `incomeTax` para descontar o imposto de renda). O plano guarda só as entradas
-  da simulação: o resultado é calculado no app. Remoção é desativação, então
+  `incomeTax` para descontar o imposto de renda). O plano guarda as entradas da
+  simulação, e o resultado é calculado no app. O acompanhamento do plano em
+  curso também fica nele, opcional: `trackedFrom` (`YYYY-MM` ou `null`, o mês em
+  que o plano entrou nos gastos fixos) e `progress` (mapa com o planejado e o
+  guardado de cada mês fechado, gravado na virada). Remoção é desativação, então
   `delete` continua bloqueado;
 - em `fixedExpenses` e em `months/{ym}/fixedEntries`, aceitam `planId` (string
   ou `null`, opcional), que marca o gasto fixo de planejamento: o valor mensal
   de um plano incluído no mês como conta parcelada, uma parcela por mês do
-  prazo;
+  prazo. Em `fixedEntries` aceitam também `paidAmount` (inteiro em centavos ou
+  `null`, opcional), o valor guardado quando esse gasto fica pago em parte;
 - em `fixedExpenses` e em `months/{ym}/fixedEntries`, tratam `idealAmount` como
   opcional. O gasto fixo não tem mais gasto ideal separado (o valor da conta é o
   próprio previsto do mês), então o app parou de escrever esse campo: enquanto a
