@@ -49,6 +49,20 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
   líquida daquele mês (inteiro em centavos, opcional): ela é copiada do
   compartimento quando o mês nasce e fica no mês para que mudar a renda hoje não
   reescreva o restante de um mês já fechado;
+- em `plans`, liberam o planejamento financeiro da aba Planejamento do app:
+  nome, tipo (`accumulate` para "quanto vou juntar" e `goal` para "quanto
+  guardar por mês"), valores em centavos (`monthlyAmount`, `targetAmount` e
+  `initialAmount`), prazo em meses (`durationMonths`, de 1 a 600, mais a
+  unidade digitada em `durationUnit`), primeiro mês (`startMonth`, `YYYY-MM`) e
+  o rendimento opcional (`rateMode` `none`, `annual` ou `cdi`, com `annualRate`,
+  `cdiRate` e `cdiPercent` inteiros em centésimos de ponto percentual, e
+  `incomeTax` para descontar o imposto de renda). O plano guarda só as entradas
+  da simulação: o resultado é calculado no app. Remoção é desativação, então
+  `delete` continua bloqueado;
+- em `fixedExpenses` e em `months/{ym}/fixedEntries`, aceitam `planId` (string
+  ou `null`, opcional), que marca o gasto fixo de planejamento: o valor mensal
+  de um plano incluído no mês como conta parcelada, uma parcela por mês do
+  prazo;
 - em `fixedExpenses` e em `months/{ym}/fixedEntries`, tratam `idealAmount` como
   opcional. O gasto fixo não tem mais gasto ideal separado (o valor da conta é o
   próprio previsto do mês), então o app parou de escrever esse campo: enquanto a
@@ -58,8 +72,8 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
 
 O Firestore nega tudo que não está explicitamente liberado, então **coleção nova
 no app exige bloco novo aqui**. Hoje existem `fixedExpenses`, `categories`,
-`origins` e `months` (com `fixedEntries`, `categoryEntries`, `originEntries` e
-`expenses`). Sem o bloco, a tela do app falha com `permission-denied` sem
+`origins`, `plans` e `months` (com `fixedEntries`, `categoryEntries`,
+`originEntries` e `expenses`). Sem o bloco, a tela do app falha com `permission-denied` sem
 conseguir nem listar.
 
 ## Desenvolvimento local
