@@ -25,10 +25,11 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
 - bloqueiam `list` na coleção `compartments` (não dá para enumerar compartimentos);
 - tornam o `passwordHash` e o nome do compartimento imutáveis, deixando mudar
   só o mês corrente (`currentMonth`), a renda mensal líquida (`monthlyIncome`)
-  e as preferências de leitura do card de estatísticas da tela Adicionar: a
-  categoria e a origem acompanhadas (`weekCategoryId` e `weekOriginId`) e a aba
-  aberta (`addStatsTab`, que só aceita `month`, `category` ou `origin`). Tudo
-  isso fica no compartimento para valer em qualquer aparelho;
+  e as preferências de leitura da tela Adicionar: o modo (`addMode`, que só
+  aceita `import` ou `manual`) e, no card de estatísticas, a categoria e a
+  origem acompanhadas (`weekCategoryId` e `weekOriginId`) e a aba aberta
+  (`addStatsTab`, que só aceita `month`, `category` ou `origin`). Tudo isso
+  fica no compartimento para valer em qualquer aparelho;
 - validam a estrutura básica dos documentos (tipos, valores em centavos >= 0 etc.);
 - em `expenses`, liberam a edição do lançamento feita no histórico do mês:
   `amount`, `description`, a classificação (`categoryId`, `categoryName`,
@@ -67,6 +68,26 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
   de um plano incluído no mês como conta parcelada, uma parcela por mês do
   prazo. Em `fixedEntries` aceitam também `paidAmount` (inteiro em centavos ou
   `null`, opcional), o valor guardado quando esse gasto fica pago em parte;
+- em `settings/{settingId}`, liberam as duas configurações com segredo da
+  importação de fatura: `ai` (a fila de até 6 modelos de IA em `chain`, as
+  instruções em `instructions` e `updatedAt`) e `emailImport` (até 10 caixas
+  do Gmail em `mailboxes`, até 30 remetentes de fatura em `senders`,
+  `lookbackDays` de 1 a 365 e `updatedAt`). Cada documento aceita só as suas
+  chaves (`hasOnly`) e pode ser apagado (o "Remover" da tela de IA). A chave
+  de API e a senha do ZIP chegam aqui já cifradas no app, com uma chave
+  derivada da senha do compartimento: a leitura continua aberta a quem sabe o
+  id, como no resto;
+- em `importedItems`, liberam o registro de importação de fatura: um documento
+  por compra já revisada, com `kind` (`expense`, `fixed` ou `skipped`), `key`,
+  `ym` (`YYYY-MM`), `refId`, `amount` (inteiro em centavos), `until`
+  (`YYYY-MM` ou `null`, o último mês da compra parcelada) e `createdAt`. O
+  `update` existe porque a mesma chave volta a ser gravada quando uma compra
+  parcelada idêntica entra depois do fim da anterior; `delete` fica bloqueado,
+  porque o registro é o histórico do que já foi importado;
+- em `months/{ym}/expenses` (create) e em `fixedExpenses`, aceitam `importKey`
+  (string, opcional): a chave da compra que veio da fatura importada. Ela fica
+  fora da lista de campos do `update` do lançamento, então não muda depois de
+  criada;
 - em `fixedExpenses` e em `months/{ym}/fixedEntries`, tratam `idealAmount` como
   opcional. O gasto fixo não tem mais gasto ideal separado (o valor da conta é o
   próprio previsto do mês), então o app parou de escrever esse campo: enquanto a
@@ -76,8 +97,8 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
 
 O Firestore nega tudo que não está explicitamente liberado, então **coleção nova
 no app exige bloco novo aqui**. Hoje existem `fixedExpenses`, `categories`,
-`origins`, `plans` e `months` (com `fixedEntries`, `categoryEntries`,
-`originEntries` e `expenses`). Sem o bloco, a tela do app falha com `permission-denied` sem
+`origins`, `plans`, `settings`, `importedItems` e `months` (com `fixedEntries`,
+`categoryEntries`, `originEntries` e `expenses`). Sem o bloco, a tela do app falha com `permission-denied` sem
 conseguir nem listar.
 
 ## Desenvolvimento local
