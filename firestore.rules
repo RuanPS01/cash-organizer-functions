@@ -156,31 +156,20 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // Configurações do compartimento que guardam segredo: `ai` (fila de
-      // modelos de IA e instruções) e `emailImport` (caixas do Gmail e
-      // remetentes de fatura). A chave de API e a senha do ZIP chegam aqui já
-      // cifradas no app com a chave derivada da senha do compartimento, porque
+      // Configurações do compartimento que guardam segredo. Hoje só `ai`
+      // (fila de modelos de IA e instruções). A chave de API chega aqui já
+      // cifrada no app com a chave derivada da senha do compartimento, porque
       // a leitura é aberta a quem sabe o id, como em todo o resto. Apagar é a
       // ação "Remover" da tela de IA.
       match /settings/{settingId} {
         allow read: if true;
-        allow create, update: if (settingId == 'ai'
-                                  && request.resource.data.keys().hasOnly(['chain', 'instructions', 'updatedAt'])
-                                  && request.resource.data.chain is list
-                                  && request.resource.data.chain.size() <= 6
-                                  && request.resource.data.instructions is map
-                                  && request.resource.data.updatedAt is int)
-                              || (settingId == 'emailImport'
-                                  && request.resource.data.keys().hasOnly(['mailboxes', 'senders', 'lookbackDays', 'updatedAt'])
-                                  && request.resource.data.mailboxes is list
-                                  && request.resource.data.mailboxes.size() <= 10
-                                  && request.resource.data.senders is list
-                                  && request.resource.data.senders.size() <= 30
-                                  && request.resource.data.lookbackDays is int
-                                  && request.resource.data.lookbackDays >= 1
-                                  && request.resource.data.lookbackDays <= 365
-                                  && request.resource.data.updatedAt is int);
-        allow delete: if settingId in ['ai', 'emailImport'];
+        allow create, update: if settingId == 'ai'
+                              && request.resource.data.keys().hasOnly(['chain', 'instructions', 'updatedAt'])
+                              && request.resource.data.chain is list
+                              && request.resource.data.chain.size() <= 6
+                              && request.resource.data.instructions is map
+                              && request.resource.data.updatedAt is int;
+        allow delete: if settingId == 'ai';
       }
 
       // Registro de importação de fatura: um documento por compra que já
