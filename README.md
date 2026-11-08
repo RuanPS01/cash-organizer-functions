@@ -26,7 +26,7 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
 - tornam o `passwordHash` e o nome do compartimento imutáveis, deixando mudar
   só o mês corrente (`currentMonth`), a renda mensal líquida (`monthlyIncome`)
   e as preferências de leitura da tela Adicionar: o modo (`addMode`, que só
-  aceita `import` ou `manual`) e, no card de estatísticas, a categoria e a
+  aceita `manual`, o padrão, ou `import`) e, no card de estatísticas, a categoria e a
   origem acompanhadas (`weekCategoryId` e `weekOriginId`) e a aba aberta
   (`addStatsTab`, que só aceita `month`, `category` ou `origin`). Tudo isso
   fica no compartimento para valer em qualquer aparelho;
@@ -68,15 +68,12 @@ senha do compartimento (o cliente valida o hash SHA-256 armazenado). As regras:
   de um plano incluído no mês como conta parcelada, uma parcela por mês do
   prazo. Em `fixedEntries` aceitam também `paidAmount` (inteiro em centavos ou
   `null`, opcional), o valor guardado quando esse gasto fica pago em parte;
-- em `settings/{settingId}`, liberam as duas configurações com segredo da
-  importação de fatura: `ai` (a fila de até 6 modelos de IA em `chain`, as
-  instruções em `instructions` e `updatedAt`) e `emailImport` (até 10 caixas
-  do Gmail em `mailboxes`, até 30 remetentes de fatura em `senders`,
-  `lookbackDays` de 1 a 365 e `updatedAt`). Cada documento aceita só as suas
-  chaves (`hasOnly`) e pode ser apagado (o "Remover" da tela de IA). A chave
-  de API e a senha do ZIP chegam aqui já cifradas no app, com uma chave
-  derivada da senha do compartimento: a leitura continua aberta a quem sabe o
-  id, como no resto;
+- em `settings/{settingId}`, liberam só o documento `ai`, a configuração de
+  IA da importação de fatura (a fila de até 6 modelos em `chain`, as
+  instruções em `instructions` e `updatedAt`). Ele aceita só essas chaves
+  (`hasOnly`) e pode ser apagado (o "Remover" da tela de IA). A chave de API
+  chega aqui já cifrada no app, com uma chave derivada da senha do
+  compartimento: a leitura continua aberta a quem sabe o id, como no resto;
 - em `importedItems`, liberam o registro de importação de fatura: um documento
   por compra já revisada, com `kind` (`expense`, `fixed` ou `skipped`), `key`,
   `ym` (`YYYY-MM`), `refId`, `amount` (inteiro em centavos), `until`
