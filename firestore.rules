@@ -23,13 +23,14 @@ service cloud.firestore {
                     && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}');
 
       // Só o mês corrente, a renda mensal líquida e as preferências de leitura
-      // do card de estatísticas da tela Adicionar (categoria e origem
-      // acompanhadas e aba aberta) podem mudar; nome e hash da senha são
-      // imutáveis. As preferências e a renda ficam aqui, e não no dispositivo,
-      // para valerem em qualquer aparelho.
+      // da tela Adicionar (o modo, importar fatura ou lançar à mão, e no card
+      // de estatísticas a categoria e a origem acompanhadas e a aba aberta)
+      // podem mudar; nome e hash da senha são imutáveis. As preferências e a
+      // renda ficam aqui, e não no dispositivo, para valerem em qualquer
+      // aparelho.
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['currentMonth', 'weekCategoryId', 'weekOriginId',
-                                   'addStatsTab', 'monthlyIncome'])
+                                   'addStatsTab', 'monthlyIncome', 'addMode'])
                     && request.resource.data.currentMonth is string
                     && request.resource.data.currentMonth.matches('[0-9]{4}-[0-9]{2}')
                     && (!('weekCategoryId' in request.resource.data)
@@ -40,6 +41,8 @@ service cloud.firestore {
                         || request.resource.data.weekOriginId is string)
                     && (!('addStatsTab' in request.resource.data)
                         || request.resource.data.addStatsTab in ['month', 'category', 'origin'])
+                    && (!('addMode' in request.resource.data)
+                        || request.resource.data.addMode in ['import', 'manual'])
                     // Renda mensal líquida em centavos. Opcional porque o
                     // compartimento criado antes do campo existir não tem a
                     // chave, e sem essa folga até trocar o mês corrente dele
@@ -57,7 +60,8 @@ service cloud.firestore {
         // porque o cadastro gravado antes da mudança ainda carrega a chave.
         // `planId` liga o gasto fixo de planejamento ao plano que o criou;
         // opcional porque o gasto fixo comum e o cadastrado antes do campo não
-        // têm a chave.
+        // têm a chave. `importKey` é a chave da compra parcelada que veio de
+        // uma fatura importada, e só existe nesse caso.
         allow create, update: if request.resource.data.name is string
                               && request.resource.data.name.size() > 0
                               && request.resource.data.amount is int
@@ -67,7 +71,9 @@ service cloud.firestore {
                                       && request.resource.data.idealAmount >= 0))
                               && (!('planId' in request.resource.data)
                                   || request.resource.data.planId == null
-                                  || request.resource.data.planId is string);
+                                  || request.resource.data.planId is string)
+                              && (!('importKey' in request.resource.data)
+                                  || request.resource.data.importKey is string);
         allow delete: if false;
       }
 
@@ -150,6 +156,58 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Configurações do compartimento que guardam segredo: `ai` (fila de
+      // modelos de IA e instruções) e `emailImport` (caixas do Gmail e
+      // remetentes de fatura). A chave de API e a senha do ZIP chegam aqui já
+      // cifradas no app com a chave derivada da senha do compartimento, porque
+      // a leitura é aberta a quem sabe o id, como em todo o resto. Apagar é a
+      // ação "Remover" da tela de IA.
+      match /settings/{settingId} {
+        allow read: if true;
+        allow create, update: if (settingId == 'ai'
+                                  && request.resource.data.keys().hasOnly(['chain', 'instructions', 'updatedAt'])
+                                  && request.resource.data.chain is list
+                                  && request.resource.data.chain.size() <= 6
+                                  && request.resource.data.instructions is map
+                                  && request.resource.data.updatedAt is int)
+                              || (settingId == 'emailImport'
+                                  && request.resource.data.keys().hasOnly(['mailboxes', 'senders', 'lookbackDays', 'updatedAt'])
+                                  && request.resource.data.mailboxes is list
+                                  && request.resource.data.mailboxes.size() <= 10
+                                  && request.resource.data.senders is list
+                                  && request.resource.data.senders.size() <= 30
+                                  && request.resource.data.lookbackDays is int
+                                  && request.resource.data.lookbackDays >= 1
+                                  && request.resource.data.lookbackDays <= 365
+                                  && request.resource.data.updatedAt is int);
+        allow delete: if settingId in ['ai', 'emailImport'];
+      }
+
+      // Registro de importação de fatura: um documento por compra que já
+      // passou pela revisão, com id igual ao hash da chave da compra. É o que
+      // faz a importação criar só o que ainda não entrou, em qualquer mês.
+      // `until` é o último mês em que a compra parcelada ainda aparece nas
+      // faturas (null na compra à vista). O update existe porque a mesma chave
+      // volta a ser gravada quando uma compra parcelada idêntica entra depois
+      // do fim da anterior. Não se apaga: o registro é o histórico do que já
+      // foi importado.
+      match /importedItems/{itemId} {
+        allow read: if true;
+        allow create, update: if request.resource.data.kind in ['expense', 'fixed', 'skipped']
+                              && request.resource.data.key is string
+                              && request.resource.data.key.size() > 0
+                              && request.resource.data.ym is string
+                              && request.resource.data.ym.matches('[0-9]{4}-[0-9]{2}')
+                              && request.resource.data.refId is string
+                              && request.resource.data.amount is int
+                              && request.resource.data.amount >= 0
+                              && (request.resource.data.until == null
+                                  || (request.resource.data.until is string
+                                      && request.resource.data.until.matches('[0-9]{4}-[0-9]{2}')))
+                              && request.resource.data.createdAt is int;
+        allow delete: if false;
+      }
+
       match /months/{monthId} {
         allow read: if true;
         // `currentWeek` é a semana corrente do mês (1 a 4), que o usuário vira
@@ -224,13 +282,18 @@ service cloud.firestore {
 
         match /expenses/{expenseId} {
           allow read: if true;
+          // `importKey` é a chave da compra na fatura importada; ausente no
+          // lançamento digitado à mão. Ela não entra na lista do update: a
+          // ligação com o registro de importação não muda depois de criada.
           allow create: if request.resource.data.amount is int
                         && request.resource.data.amount > 0
                         && request.resource.data.categoryId is string
                         && request.resource.data.categoryName is string
                         && request.resource.data.week is int
                         && request.resource.data.week >= 1
-                        && request.resource.data.week <= 4;
+                        && request.resource.data.week <= 4
+                        && (!('importKey' in request.resource.data)
+                            || request.resource.data.importKey is string);
           // O histórico do mês edita o lançamento inteiro no modal do lápis:
           // valor, descrição, classificação (categoria e origem) e a data do
           // gasto, que traz a semana junto, porque a semana é derivada dela.
